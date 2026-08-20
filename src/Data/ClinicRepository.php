@@ -11,12 +11,14 @@ final class ClinicRepository {
 	/** @var RelationshipService */ private $relationships;
 	/** @var LocationRepository */ private $locations;
 	/** @var StateRegistry */ private $states;
+	/** @var array<int,array<string,mixed>|null> */ private $cache = array();
 	public function __construct( LegacyMetaAdapter $meta, RelationshipService $relationships, LocationRepository $locations, StateRegistry $states ) { $this->meta = $meta; $this->relationships = $relationships; $this->locations = $locations; $this->states = $states; }
 
 	/** @return array<string,mixed>|null */
 	public function get( int $post_id ): ?array {
+		if ( array_key_exists( $post_id, $this->cache ) ) { return $this->cache[ $post_id ]; }
 		$post = get_post( $post_id );
-		if ( ! $post instanceof \WP_Post || 'clinic' !== $post->post_type ) { return null; }
+		if ( ! $post instanceof \WP_Post || 'clinic' !== $post->post_type ) { $this->cache[ $post_id ] = null; return null; }
 		$addresses = $this->locations->for_clinic( $post_id );
 		$state_codes = array();
 		foreach ( $this->meta->list_value( $this->meta->first( $post_id, array( 'clinic_states', '_360_states' ), array() ) ) as $state ) {
@@ -42,6 +44,9 @@ final class ClinicRepository {
 			'source' => metadata_exists( 'post', $post_id, '_360_organization_id' ) ? 'api' : 'editorial',
 			'is_temporary' => (bool) get_post_meta( $post_id, '_360_is_temporary', true ),
 		);
-		return apply_filters( 'global360_clinic_view', $data, $post_id );
+		$this->cache[ $post_id ] = apply_filters( 'global360_clinic_view', $data, $post_id );
+		return $this->cache[ $post_id ];
 	}
+
+	public function forget( int $post_id ): void { unset( $this->cache[ $post_id ] ); }
 }

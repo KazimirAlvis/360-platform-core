@@ -37,9 +37,16 @@ try {
 	$clinic = global360_platform()->clinics()->get( $clinic_id );
 	$doctor = global360_platform()->doctors()->get( $doctor_id );
 	platform_expect( 'legacy-org' === $clinic['external_organization_id'] && '555-0100' === $clinic['phone'], 'Clinic normalized view reads legacy aliases' );
+	$queries_before_cached_read = get_num_queries();
+	platform_expect( $clinic === global360_platform()->clinics()->get( $clinic_id ) && $queries_before_cached_read === get_num_queries(), 'Clinic normalized view is memoized per request' );
+	update_post_meta( $clinic_id, '_cpt360_clinic_phone', '555-0101' );
+	$clinic = global360_platform()->clinics()->get( $clinic_id );
+	platform_expect( '555-0101' === $clinic['phone'], 'Clinic memoization invalidates after meta updates' );
 	platform_expect( array( 'DC' ) === $clinic['state_codes'], 'Clinic state normalization includes DC' );
 	platform_expect( in_array( $doctor_id, $clinic['doctor_ids'], true ), 'Clinic to Doctors relationship resolves' );
 	platform_expect( array( $clinic_id ) === $doctor['clinic_ids'], 'Doctor to Clinics relationship resolves' );
+	$queries_before_doctor_cached_read = get_num_queries();
+	platform_expect( $doctor === global360_platform()->doctors()->get( $doctor_id ) && $queries_before_doctor_cached_read === get_num_queries(), 'Doctor normalized view is memoized per request' );
 	platform_expect( 'DC' === $doctor['locations'][0]['state'], 'Doctor locations derive from linked Clinic' );
 	platform_expect( false === array_key_exists( '_360_phone', $clinic ), 'normalized Clinic contract hides aliases' );
 	platform_expect( global360_platform()->site_context()->all() === (array) get_option( '360_global_settings', array() ), 'SiteContext wraps existing option without migration' );

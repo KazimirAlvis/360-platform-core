@@ -8,10 +8,12 @@ use Global360\Platform\Support\LegacyMetaAdapter;
 final class LocationRepository {
 	/** @var LegacyMetaAdapter */ private $meta;
 	/** @var StateRegistry */ private $states;
+	/** @var array<int,array<int,array<string,mixed>>> */ private $cache = array();
 	public function __construct( LegacyMetaAdapter $meta, StateRegistry $states ) { $this->meta = $meta; $this->states = $states; }
 
 	/** @return array<int,array<string,mixed>> */
 	public function for_clinic( int $clinic_id ): array {
+		if ( isset( $this->cache[ $clinic_id ] ) ) { return $this->cache[ $clinic_id ]; }
 		$raw = $this->meta->first( $clinic_id, array( 'clinic_addresses', '_360_addresses' ), array() );
 		$rows = is_array( $raw ) ? $raw : ( '' !== trim( (string) $raw ) ? array( array( 'full_address' => (string) $raw ) ) : array() );
 		$locations = array();
@@ -41,6 +43,9 @@ final class LocationRepository {
 				'full_address' => sanitize_text_field( (string) $this->meta->first( $clinic_id, array( 'clinic_address' ) ) ),
 			);
 		}
-		return array_values( array_filter( $locations, function ( $location ) { return (bool) array_filter( $location ); } ) );
+		$this->cache[ $clinic_id ] = array_values( array_filter( $locations, function ( $location ) { return (bool) array_filter( $location ); } ) );
+		return $this->cache[ $clinic_id ];
 	}
+
+	public function forget( int $clinic_id ): void { unset( $this->cache[ $clinic_id ] ); }
 }

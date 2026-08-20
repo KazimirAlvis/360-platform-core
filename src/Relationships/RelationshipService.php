@@ -11,6 +11,8 @@ final class RelationshipService {
 	private $doctor_clinics = array();
 	/** @var array<int,array<int,int>>|null */
 	private $clinic_doctors;
+	/** @var bool */
+	private $index_built = false;
 
 	public function __construct( LegacyMetaAdapter $meta ) { $this->meta = $meta; }
 
@@ -29,16 +31,65 @@ final class RelationshipService {
 
 	/** @return array<int,int> */
 	public function doctors_for_clinic( int $clinic_id ): array {
-		if ( null === $this->clinic_doctors ) {
-			$this->clinic_doctors = array();
-			$doctor_ids = get_posts( array( 'post_type' => 'doctor', 'post_status' => array( 'publish', 'draft', 'pending', 'private' ), 'posts_per_page' => -1, 'fields' => 'ids', 'no_found_rows' => true ) );
-			foreach ( array_map( 'absint', $doctor_ids ) as $doctor_id ) {
-				foreach ( $this->clinics_for_doctor( $doctor_id ) as $linked_clinic_id ) {
-					$this->clinic_doctors[ $linked_clinic_id ][] = $doctor_id;
-				}
-			}
-		}
+		$this->build_index();
 		return $this->clinic_doctors[ $clinic_id ] ?? array();
+	}
+
+	/** Build both relationship directions once with post and meta caches primed. */
+	private function build_index(): void {
+		if ( $this->index_built ) { return; }
+
+		$this->index_built    = true;
+		$this->clinic_doctors = array();
+		$doctors = get_posts(
+			array(
+				'post_type'              => 'doctor',
+				'post_status'            => array( 'publish', 'draft', 'pending', 'private' ),
+				'posts_per_page'         => -1,
+				'no_found_rows'          => true,
+				'update_post_meta_cache' => true,
+				'update_post_term_cache' => false,
+			)
+		);
+
+		$clinic_ids = array();
+		foreach ( $doctors as $doctor ) {
+			$doctor_id = (int) $doctor->ID;
+			$ids = $this->meta->id_list( $this->meta->first( $doctor_id, array( 'clinic_id' ), array() ) );
+			foreach ( array( '_360_clinic_post_id', 'clinic_post_id' ) as $key ) {
+				$value = absint( get_post_meta( $doctor_id, $key, true ) );
+				if ( $value ) { $ids[] = $value; }
+			}
+			$ids = array_values( array_unique( array_filter( $ids ) ) );
+			$this->doctor_clinics[ $doctor_id ] = $ids;
+			$clinic_ids = array_merge( $clinic_ids, $ids );
+		}
+
+		$clinic_ids = array_values( array_unique( array_map( 'absint', $clinic_ids ) ) );
+		$valid_clinics = empty( $clinic_ids ) ? array() : get_posts(
+			array(
+				'post_type'              => 'clinic',
+				'post_status'            => array( 'publish', 'draft', 'pending', 'private' ),
+				'posts_per_page'         => -1,
+				'post__in'               => $clinic_ids,
+				'no_found_rows'          => true,
+				'update_post_meta_cache' => true,
+				'update_post_term_cache' => false,
+			)
+		);
+		$valid_ids = array_fill_keys( array_map( static function ( $clinic ) { return (int) $clinic->ID; }, $valid_clinics ), true );
+
+		foreach ( $this->doctor_clinics as $doctor_id => $ids ) {
+			$ids = array_values( array_filter( $ids, static function ( $id ) use ( $valid_ids ) { return isset( $valid_ids[ $id ] ); } ) );
+			$this->doctor_clinics[ $doctor_id ] = $ids;
+			foreach ( $ids as $clinic_id ) { $this->clinic_doctors[ $clinic_id ][] = $doctor_id; }
+		}
+	}
+
+	public function forget_index(): void {
+		$this->doctor_clinics = array();
+		$this->clinic_doctors = null;
+		$this->index_built = false;
 	}
 
 	/**
@@ -57,7 +108,7 @@ final class RelationshipService {
 			update_post_meta( $doctor_id, '_360_clinic_post_id', $clinic_ids[0] );
 			update_post_meta( $doctor_id, 'clinic_post_id', $clinic_ids[0] );
 		}
+		$this->forget_index();
 		$this->doctor_clinics[ $doctor_id ] = $clinic_ids;
-		$this->clinic_doctors = null;
 	}
 }

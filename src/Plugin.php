@@ -35,6 +35,10 @@ final class Plugin {
 		$this->booted = true;
 		add_action( 'init', array( PostTypes::class, 'register' ), 5 );
 		add_action( 'init', array( MetaRegistry::class, 'register' ), 6 );
+		add_action( 'clean_post_cache', array( $this, 'invalidate_post' ) );
+		add_action( 'added_post_meta', array( $this, 'invalidate_meta' ), 10, 2 );
+		add_action( 'updated_post_meta', array( $this, 'invalidate_meta' ), 10, 2 );
+		add_action( 'deleted_post_meta', array( $this, 'invalidate_meta' ), 10, 2 );
 	}
 
 	public static function activate(): void {
@@ -87,6 +91,17 @@ final class Plugin {
 	 */
 	public function entity_updated( string $entity_type, int $post_id, array $changes = array() ): void {
 		do_action( 'global360_entity_updated', $entity_type, $post_id, $changes );
+	}
+
+	public function invalidate_post( int $post_id ): void {
+		if ( isset( $this->services['clinics'] ) ) { $this->services['clinics']->forget( $post_id ); }
+		if ( isset( $this->services['doctors'] ) ) { $this->services['doctors']->forget( $post_id ); }
+		if ( isset( $this->services['locations'] ) ) { $this->services['locations']->forget( $post_id ); }
+		if ( isset( $this->services['relationships'] ) ) { $this->services['relationships']->forget_index(); }
+	}
+
+	public function invalidate_meta( $meta_id, int $post_id ): void {
+		$this->invalidate_post( $post_id );
 	}
 
 	/** @param array<int,mixed> $candidates @param array<string,mixed> $context @return array<int,mixed> */
