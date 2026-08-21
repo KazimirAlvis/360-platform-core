@@ -1,0 +1,117 @@
+<?php
+
+namespace Global360\Platform;
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/** Manifest-based GitHub updater shared with the other 360 plugins. */
+final class Updater {
+	private const MANIFEST_URL = 'https://raw.githubusercontent.com/KazimirAlvis/360-platform-core/main/plugin-manifest.json';
+	private const SLUG         = '360-platform-core';
+
+	public static function init(): void {
+		add_filter( 'pre_set_site_transient_update_plugins', array( __CLASS__, 'inject_update' ) );
+		add_filter( 'plugins_api', array( __CLASS__, 'plugins_api' ), 20, 3 );
+		add_filter( 'upgrader_source_selection', array( __CLASS__, 'rename_github_package' ), 10, 4 );
+	}
+
+	/** @param object $transient @return object */
+	public static function inject_update( $transient ) {
+		if ( ! is_object( $transient ) ) {
+			$transient = new \stdClass();
+		}
+		if ( empty( $transient->checked ) || ! is_array( $transient->checked ) ) {
+			return $transient;
+		}
+
+		$manifest = self::get_manifest();
+		if ( ! is_array( $manifest ) ) {
+			return $transient;
+		}
+
+		$plugin_file = plugin_basename( GLOBAL360_PLATFORM_FILE );
+		$new_version = sanitize_text_field( (string) ( $manifest['version'] ?? '' ) );
+		$package     = esc_url_raw( (string) ( $manifest['download_url'] ?? '' ) );
+		$homepage    = esc_url_raw( (string) ( $manifest['homepage'] ?? '' ) );
+
+		if ( '' === $new_version || '' === $package ) {
+			return $transient;
+		}
+		if ( version_compare( GLOBAL360_PLATFORM_VERSION, $new_version, '>=' ) ) {
+			unset( $transient->response[ $plugin_file ] );
+			return $transient;
+		}
+
+		$transient->response[ $plugin_file ] = (object) array(
+			'id'           => $homepage,
+			'slug'         => self::SLUG,
+			'plugin'       => $plugin_file,
+			'new_version'  => $new_version,
+			'url'          => $homepage,
+			'package'      => $package,
+			'tested'       => sanitize_text_field( (string) ( $manifest['tested'] ?? '' ) ),
+			'requires'     => sanitize_text_field( (string) ( $manifest['requires'] ?? '' ) ),
+			'requires_php' => sanitize_text_field( (string) ( $manifest['requires_php'] ?? '' ) ),
+		);
+		return $transient;
+	}
+
+	/** @param false|object|array<string,mixed> $result @return false|object|array<string,mixed> */
+	public static function plugins_api( $result, string $action, $args ) {
+		if ( 'plugin_information' !== $action || ! is_object( $args ) || empty( $args->slug ) || self::SLUG !== (string) $args->slug ) {
+			return $result;
+		}
+		$manifest = self::get_manifest();
+		if ( ! is_array( $manifest ) ) {
+			return $result;
+		}
+		$sections = array();
+		foreach ( (array) ( $manifest['sections'] ?? array() ) as $key => $value ) {
+			if ( is_string( $key ) && is_string( $value ) ) {
+				$sections[ sanitize_key( $key ) ] = wp_kses_post( $value );
+			}
+		}
+		return (object) array(
+			'name'          => sanitize_text_field( (string) ( $manifest['name'] ?? '360 Platform Core' ) ),
+			'slug'          => self::SLUG,
+			'version'       => sanitize_text_field( (string) ( $manifest['version'] ?? GLOBAL360_PLATFORM_VERSION ) ),
+			'author'        => wp_kses_post( (string) ( $manifest['author'] ?? '' ) ),
+			'author_profile'=> esc_url_raw( (string) ( $manifest['author_profile'] ?? '' ) ),
+			'homepage'      => esc_url_raw( (string) ( $manifest['homepage'] ?? '' ) ),
+			'download_link' => esc_url_raw( (string) ( $manifest['download_url'] ?? '' ) ),
+			'requires'      => sanitize_text_field( (string) ( $manifest['requires'] ?? '' ) ),
+			'tested'        => sanitize_text_field( (string) ( $manifest['tested'] ?? '' ) ),
+			'requires_php'  => sanitize_text_field( (string) ( $manifest['requires_php'] ?? '' ) ),
+			'last_updated'  => sanitize_text_field( (string) ( $manifest['last_updated'] ?? '' ) ),
+			'sections'      => $sections,
+		);
+	}
+
+	/** @param array<string,mixed> $hook_extra */
+	public static function rename_github_package( string $source, string $remote_source, $upgrader, array $hook_extra ): string {
+		if ( empty( $hook_extra['type'] ) || 'plugin' !== $hook_extra['type'] ) {
+			return $source;
+		}
+		$plugin = (string) ( $hook_extra['plugin'] ?? '' );
+		if ( '' !== $plugin && plugin_basename( GLOBAL360_PLATFORM_FILE ) !== $plugin ) {
+			return $source;
+		}
+		if ( self::SLUG === basename( $source ) ) {
+			return $source;
+		}
+		$target = trailingslashit( dirname( $source ) ) . self::SLUG;
+		return @rename( $source, $target ) ? $target : $source;
+	}
+
+	/** @return array<string,mixed>|null */
+	private static function get_manifest(): ?array {
+		$response = wp_remote_get( self::MANIFEST_URL, array( 'timeout' => 15, 'headers' => array( 'Accept' => 'application/json' ) ) );
+		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+			return null;
+		}
+		$decoded = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+		return is_array( $decoded ) ? $decoded : null;
+	}
+}

@@ -54,6 +54,32 @@ try {
 	platform_expect( false !== strpos( get_permalink( $clinic_id ), '/clinics/platform-core-test-clinic' ), 'Clinic permalink remains stable' );
 	platform_expect( false !== strpos( get_permalink( $doctor_id ), '/doctors/platform-core-test-doctor' ), 'Doctor permalink remains stable' );
 
+	$platform_manifest_version = GLOBAL360_PLATFORM_VERSION;
+	$platform_manifest_filter  = static function ( $preempt, $args, $url ) use ( &$platform_manifest_version ) {
+		if ( 'https://raw.githubusercontent.com/KazimirAlvis/360-platform-core/main/plugin-manifest.json' !== $url ) {
+			return $preempt;
+		}
+		return array(
+			'headers'  => array( 'content-type' => 'application/json' ),
+			'body'     => wp_json_encode( array(
+				'version'      => $platform_manifest_version,
+				'download_url' => 'https://github.com/KazimirAlvis/360-platform-core/archive/refs/heads/main.zip',
+				'homepage'     => 'https://github.com/KazimirAlvis/360-platform-core',
+			) ),
+			'response' => array( 'code' => 200, 'message' => 'OK' ),
+			'cookies'  => array(),
+			'filename' => null,
+		);
+	};
+	add_filter( 'pre_http_request', $platform_manifest_filter, 10, 3 );
+	$plugin_key = plugin_basename( GLOBAL360_PLATFORM_FILE );
+	$updates    = apply_filters( 'pre_set_site_transient_update_plugins', (object) array( 'checked'=>array( $plugin_key=>GLOBAL360_PLATFORM_VERSION ), 'response'=>array() ) );
+	platform_expect( empty( $updates->response[ $plugin_key ] ), 'matching Core manifest does not offer an update' );
+	$platform_manifest_version = '1.0.1';
+	$updates = apply_filters( 'pre_set_site_transient_update_plugins', (object) array( 'checked'=>array( $plugin_key=>GLOBAL360_PLATFORM_VERSION ), 'response'=>array() ) );
+	platform_expect( isset( $updates->response[ $plugin_key ] ) && '1.0.1' === $updates->response[ $plugin_key ]->new_version, 'newer Core manifest offers an update in WordPress' );
+	remove_filter( 'pre_http_request', $platform_manifest_filter, 10 );
+
 	$existing_clinic = get_posts( array( 'post_type'=>'clinic', 'post_status'=>'any', 'posts_per_page'=>1, 'fields'=>'ids', 'exclude'=>array( $clinic_id ) ) );
 	if ( $existing_clinic ) { platform_expect( null !== global360_platform()->clinics()->get( (int) $existing_clinic[0] ), 'existing Clinic retrieval works' ); }
 	$existing_doctor = get_posts( array( 'post_type'=>'doctor', 'post_status'=>'any', 'posts_per_page'=>1, 'fields'=>'ids', 'exclude'=>array( $doctor_id ) ) );

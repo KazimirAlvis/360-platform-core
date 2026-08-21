@@ -1,8 +1,11 @@
 <?php
 /**
  * Plugin Name: 360 Platform Core
+ * Plugin URI: https://github.com/KazimirAlvis/360-platform-core
  * Description: Stable content, data, geography, relationship, and site-context services for the Global 360 platform.
- * Version: 0.1.0
+ * Version: 1.0.0
+ * Author: PR360
+ * Update URI: https://github.com/KazimirAlvis/360-platform-core
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Text Domain: 360-platform-core
@@ -12,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GLOBAL360_PLATFORM_VERSION', '0.1.0' );
+define( 'GLOBAL360_PLATFORM_VERSION', '1.0.0' );
 define( 'GLOBAL360_PLATFORM_FILE', __FILE__ );
 define( 'GLOBAL360_PLATFORM_PATH', plugin_dir_path( __FILE__ ) );
 define( 'GLOBAL360_PLATFORM_CORE_OWNS_CONTENT_TYPES', true );
@@ -28,6 +31,7 @@ $global360_platform_files = array(
 	'src/Ownership/FieldOwnership.php',
 	'src/Content/PostTypes.php',
 	'src/Content/MetaRegistry.php',
+	'src/Updater.php',
 	'src/Plugin.php',
 );
 
@@ -44,6 +48,7 @@ if ( ! function_exists( 'global360_platform' ) ) {
 }
 
 global360_platform()->boot();
+\Global360\Platform\Updater::init();
 
 register_activation_hook( __FILE__, array( '\Global360\Platform\Plugin', 'activate' ) );
 register_deactivation_hook( __FILE__, array( '\Global360\Platform\Plugin', 'deactivate' ) );
