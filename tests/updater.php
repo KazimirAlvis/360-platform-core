@@ -15,6 +15,7 @@ function is_wp_error() { return false; }
 function wp_remote_retrieve_response_code() { return 200; }
 function wp_remote_retrieve_body( $response ) { return $response['body']; }
 function trailingslashit( $value ) { return rtrim( $value, '/\\' ) . '/'; }
+function untrailingslashit( $value ) { return rtrim( $value, '/\\' ); }
 function wp_remote_get() {
 	global $manifest_version;
 	return array( 'body' => json_encode( array(
@@ -39,11 +40,36 @@ updater_expect( '1.0.1' === $newer->response['360-platform-core/360-platform-cor
 
 $temp = sys_get_temp_dir() . '/platform-updater-' . uniqid();
 mkdir( $temp );
+
+$unrelated = $temp . '/unrelated-plugin';
+mkdir( $unrelated );
+file_put_contents( $unrelated . '/unrelated-plugin.php', "<?php\n/* Plugin Name: Unrelated */\n" );
+$original = trailingslashit( $unrelated );
+$result = \Global360\Platform\Updater::rename_github_package( $original, $temp, null, array( 'type'=>'plugin' ) );
+updater_expect( $original === $result && is_dir( $unrelated ), 'empty plugin metadata does not claim an unrelated upload' );
+$result = \Global360\Platform\Updater::rename_github_package( $original, $temp, null, array( 'type'=>'plugin', 'plugin'=>'unrelated-plugin/unrelated-plugin.php' ) );
+updater_expect( $original === $result && is_dir( $unrelated ), 'explicit unrelated plugin basename is ignored' );
+
 $github_dir = $temp . '/360-platform-core-main';
 mkdir( $github_dir );
-$renamed = \Global360\Platform\Updater::rename_github_package( $github_dir, $temp, null, array( 'type'=>'plugin', 'plugin'=>'360-platform-core/360-platform-core.php' ) );
-updater_expect( $temp . '/360-platform-core' === $renamed && is_dir( $renamed ), 'GitHub package directory normalizes to 360-platform-core' );
-rmdir( $renamed );
+file_put_contents( $github_dir . '/360-platform-core.php', "<?php\n/* Plugin Name: 360 Platform Core */\n" );
+$renamed = \Global360\Platform\Updater::rename_github_package( trailingslashit( $github_dir ), $temp, null, array( 'type'=>'plugin' ) );
+$canonical = $temp . '/360-platform-core';
+updater_expect( trailingslashit( $canonical ) === $renamed && is_dir( $canonical ), 'proven Core GitHub package normalizes with a trailing slash' );
+
+$collision = $temp . '/360-platform-core-feature';
+mkdir( $collision );
+file_put_contents( $collision . '/360-platform-core.php', "<?php\n/* Plugin Name: 360 Platform Core */\n" );
+$collision_source = trailingslashit( $collision );
+$result = \Global360\Platform\Updater::rename_github_package( $collision_source, $temp, null, array( 'type'=>'plugin', 'plugin'=>'360-platform-core/360-platform-core.php' ) );
+updater_expect( $collision_source === $result && is_dir( $collision ) && is_dir( $canonical ), 'existing canonical target is never overwritten' );
+
+unlink( $unrelated . '/unrelated-plugin.php' );
+rmdir( $unrelated );
+unlink( $canonical . '/360-platform-core.php' );
+rmdir( $canonical );
+unlink( $collision . '/360-platform-core.php' );
+rmdir( $collision );
 rmdir( $temp );
 
 echo "Platform Core updater tests passed.\n";

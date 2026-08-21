@@ -94,15 +94,24 @@ final class Updater {
 		if ( empty( $hook_extra['type'] ) || 'plugin' !== $hook_extra['type'] ) {
 			return $source;
 		}
-		$plugin = (string) ( $hook_extra['plugin'] ?? '' );
-		if ( '' !== $plugin && plugin_basename( GLOBAL360_PLATFORM_FILE ) !== $plugin ) {
+		$source_path     = untrailingslashit( $source );
+		$source_basename = basename( $source_path );
+		$plugin          = (string) ( $hook_extra['plugin'] ?? '' );
+		$expected_plugin = plugin_basename( GLOBAL360_PLATFORM_FILE );
+		$has_bootstrap   = is_file( $source_path . '/360-platform-core.php' );
+		$name_matches    = 1 === preg_match( '/^(?:360-platform-core|360-platform-core-.+)$/i', $source_basename );
+
+		if ( ! $has_bootstrap || ( $expected_plugin !== $plugin && ( '' !== $plugin || ! $name_matches ) ) ) {
 			return $source;
 		}
-		if ( self::SLUG === basename( $source ) ) {
+		if ( self::SLUG === $source_basename ) {
+			return trailingslashit( $source_path );
+		}
+		$target = trailingslashit( dirname( $source_path ) ) . self::SLUG;
+		if ( file_exists( $target ) ) {
 			return $source;
 		}
-		$target = trailingslashit( dirname( $source ) ) . self::SLUG;
-		return @rename( $source, $target ) ? $target : $source;
+		return @rename( $source_path, $target ) ? trailingslashit( $target ) : $source;
 	}
 
 	/** @return array<string,mixed>|null */
