@@ -10,7 +10,15 @@ function core_expect( $condition, $message ) { if ( ! $condition ) { fwrite( STD
 $states = new \Global360\Platform\Geography\StateRegistry();
 core_expect( 'CA' === $states->normalize( 'California' ), 'full state name normalizes' );
 core_expect( 'DC' === $states->normalize( 'District of Columbia' ), 'DC name normalizes' );
+core_expect( 'DC' === $states->normalize( 'DC' ), 'DC postal code normalizes' );
+core_expect( 'DC' === $states->from_slug( 'district-of-columbia' ), 'District of Columbia slug normalizes' );
 core_expect( 'DC' === $states->from_slug( 'washington-dc' ), 'Washington DC slug normalizes' );
+core_expect( 51 === count( $states->all() ), 'full normalization registry contains 50 states plus DC' );
+$states_only = $states->states_only();
+core_expect( 50 === count( $states_only ), 'public states-only collection contains exactly 50 states' );
+core_expect( ! isset( $states_only['DC'] ), 'DC excluded from public states-only collection' );
+core_expect( isset( $states_only['CA'], $states_only['TX'] ), 'California and Texas remain in states-only collection' );
+core_expect( array() === array_diff_key( $states->all(), $states_only, array( 'DC' => true ) ), 'no legitimate state missing from states-only collection' );
 core_expect( ! $states->is_valid( 'Atlantis' ), 'invalid state rejected' );
 $ownership = new \Global360\Platform\Ownership\FieldOwnership();
 core_expect( 'api_managed' === $ownership->for_field( 'clinic', 'phone' ), 'clinic phone ownership' );

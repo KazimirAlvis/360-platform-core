@@ -6,7 +6,8 @@ Local Stage 2 foundation for the shared Global 360 application/data layer. It ow
 $platform = global360_platform();
 $clinic   = $platform->clinics()->get( $clinic_id );
 $doctor   = $platform->doctors()->get( $doctor_id );
-$states   = $platform->states()->all();
+$states   = $platform->states()->all();        // 50 states plus DC for normalization/data.
+$directory_states = $platform->states()->states_only(); // 50-state public directories.
 ```
 
 Stage 2 is compatibility-first: no posts are recreated, no legacy meta is deleted, and the Theme retains a deprecated CPT fallback when Core is inactive.

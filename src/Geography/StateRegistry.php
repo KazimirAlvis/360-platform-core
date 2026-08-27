@@ -15,6 +15,20 @@ final class StateRegistry {
 		);
 	}
 
+	/**
+	 * Return the 50 U.S. states for public state-directory presentation.
+	 *
+	 * District of Columbia remains in all() for normalization and data
+	 * compatibility, but it is not part of the 50-state collection.
+	 *
+	 * @return array<string,string>
+	 */
+	public function states_only(): array {
+		$states = $this->all();
+		unset( $states['DC'] );
+		return $states;
+	}
+
 	/** @return array<string,string> */
 	public function slug_map(): array {
 		$map = array();

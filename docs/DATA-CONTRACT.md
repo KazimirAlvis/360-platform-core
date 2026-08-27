@@ -17,4 +17,4 @@ The public views intentionally contain no `_360_*`, `clinic_*`, or `_cpt360_*` c
 
 These remain storage compatibility details and are not returned as public keys.
 
-State normalization accepts postal codes, full names, and state slugs. The registry includes the 50 states and District of Columbia (`DC`), including `district-of-columbia` and `washington-dc` slugs.
+State normalization accepts postal codes, full names, and state slugs. The full `all()` registry includes the 50 states and District of Columbia (`DC`), including `district-of-columbia` and `washington-dc` slugs. Public 50-state directory consumers use `states_only()`, which excludes DC without changing normalization or stored Clinic data.
