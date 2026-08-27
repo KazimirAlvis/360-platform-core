@@ -1,18 +1,18 @@
 {
 	"name": "360 Platform Core",
 	"slug": "360-platform-core",
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"download_url": "https://github.com/KazimirAlvis/360-platform-core/archive/refs/heads/main.zip",
 	"requires": "6.0",
 	"tested": "6.9",
 	"requires_php": "7.4",
-	"last_updated": "2026-08-21 00:00:00",
+	"last_updated": "2026-08-26 00:00:00",
 	"author": "<a href='https://github.com/KazimirAlvis'>PR360</a>",
 	"author_profile": "https://github.com/KazimirAlvis",
 	"homepage": "https://github.com/KazimirAlvis/360-platform-core",
 	"sections": {
 		"description": "<p>Provides the stable content, data, geography, relationship, and site-context services for the Global 360 platform.</p>",
 		"installation": "<ol><li>Install the plugin in <code>/wp-content/plugins/360-platform-core/</code>.</li><li>Activate 360 Platform Core.</li></ol>",
-		"changelog": "<h4>1.0.1</h4><ul><li>Stage 2 release with request-scoped entity memoization, optimized relationship indexes, and isolated WordPress updater source handling.</li></ul><h4>1.0.0</h4><ul><li>Initial Platform Core release with shared Clinic, Doctor, geography, relationship, ownership, and site-context contracts.</li></ul>"
+		"changelog": "<h4>1.0.2</h4><ul><li>Adds a 50-state public directory collection while retaining District of Columbia normalization support.</li></ul><h4>1.0.1</h4><ul><li>Stage 2 release with request-scoped entity memoization, optimized relationship indexes, and isolated WordPress updater source handling.</li></ul><h4>1.0.0</h4><ul><li>Initial Platform Core release with shared Clinic, Doctor, geography, relationship, ownership, and site-context contracts.</li></ul>"
 	}
 }
