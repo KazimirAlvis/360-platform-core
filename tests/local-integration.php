@@ -75,9 +75,12 @@ try {
 	$plugin_key = plugin_basename( GLOBAL360_PLATFORM_FILE );
 	$updates    = apply_filters( 'pre_set_site_transient_update_plugins', (object) array( 'checked'=>array( $plugin_key=>GLOBAL360_PLATFORM_VERSION ), 'response'=>array() ) );
 	platform_expect( empty( $updates->response[ $plugin_key ] ), 'matching Core manifest does not offer an update' );
-	$platform_manifest_version = '1.0.2';
+	$installed_version_parts   = array_pad( array_map( 'intval', explode( '.', GLOBAL360_PLATFORM_VERSION ) ), 3, 0 );
+	$installed_version_parts[2]++;
+	$platform_manifest_version = implode( '.', array_slice( $installed_version_parts, 0, 3 ) );
+	platform_expect( version_compare( $platform_manifest_version, GLOBAL360_PLATFORM_VERSION, '>' ), 'simulated Core manifest version is newer than the installed version' );
 	$updates = apply_filters( 'pre_set_site_transient_update_plugins', (object) array( 'checked'=>array( $plugin_key=>GLOBAL360_PLATFORM_VERSION ), 'response'=>array() ) );
-	platform_expect( isset( $updates->response[ $plugin_key ] ) && '1.0.2' === $updates->response[ $plugin_key ]->new_version, 'newer Core manifest offers an update in WordPress' );
+	platform_expect( isset( $updates->response[ $plugin_key ] ) && $platform_manifest_version === $updates->response[ $plugin_key ]->new_version, 'newer Core manifest offers an update in WordPress' );
 	remove_filter( 'pre_http_request', $platform_manifest_filter, 10 );
 
 	$existing_clinic = get_posts( array( 'post_type'=>'clinic', 'post_status'=>'any', 'posts_per_page'=>1, 'fields'=>'ids', 'exclude'=>array( $clinic_id ) ) );
