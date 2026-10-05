@@ -31,6 +31,11 @@ $global360_platform_files = array(
 	'src/Ownership/FieldOwnership.php',
 	'src/Content/PostTypes.php',
 	'src/Content/MetaRegistry.php',
+	'src/Reviews/PatientReviews.php',
+	'src/Reviews/PublicReviewRepository.php',
+	'src/Reviews/ContactFormIntegration.php',
+	'src/Reviews/ReviewForm.php',
+	'src/Reviews/Admin.php',
 	'src/Updater.php',
 	'src/Plugin.php',
 );

@@ -33,6 +33,11 @@ final class Plugin {
 			return;
 		}
 		$this->booted = true;
+		add_action( 'init', array( Reviews\PatientReviews::class, 'install' ), 7 );
+		Reviews\ContactFormIntegration::boot();
+		Reviews\ReviewForm::boot();
+		Reviews\Admin::boot();
+		Reviews\PublicReviewRepository::boot();
 		add_action( 'init', array( PostTypes::class, 'register' ), 5 );
 		add_action( 'init', array( MetaRegistry::class, 'register' ), 6 );
 		add_action( 'clean_post_cache', array( $this, 'invalidate_post' ) );
@@ -54,6 +59,10 @@ final class Plugin {
 
 	public function clinics(): ClinicRepository {
 		return $this->service( 'clinics', function () { return new ClinicRepository( $this->legacy_meta(), $this->relationships(), $this->locations(), $this->states() ); } );
+	}
+
+	public function patient_reviews(): Reviews\PublicReviewRepository {
+		return $this->service( 'patient_reviews', function () { return new Reviews\PublicReviewRepository(); } );
 	}
 
 	public function doctors(): DoctorRepository {
