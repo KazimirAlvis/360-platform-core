@@ -11,9 +11,23 @@ final class ContactFormIntegration {
 		add_action( 'wpcf7_mail_failed', array( self::class, 'failed' ) );
 	}
 
+	/** Identify actual CF7 tags, independent of ID, title, or containing page. */
 	public static function matches( $form ): bool {
-		$hash = (string) get_option( 'global360_patient_review_form_hash', 'dc5be38' );
-		return $form && '' !== $hash && $hash === $form->hash();
+		static $scanning = false;
+		static $signatures = array();
+		if ( ! $form instanceof \WPCF7_ContactForm || $scanning ) { return false; }
+		$markup = (string) $form->prop( 'form' );
+		$key = hash( 'sha256', $markup );
+		if ( array_key_exists( $key, $signatures ) ) { return $signatures[$key]; }
+		// CF7 invokes our tag filter while scanning. Isolate its mutable scanner
+		// and guard re-entry so detection cannot corrupt the ongoing render.
+		$manager = clone \WPCF7_FormTagsManager::get_instance();
+		$scanning = true;
+		try { $tags = $manager->scan( $markup ); }
+		finally { $scanning = false; }
+		$names = array_map( static function ( $tag ) { return $tag->name; }, $tags );
+		$required = array( 'clinic-id', 'review-doctor', 'review-rating', 'review-display-name', 'review-email', 'review-message', 'review-consent' );
+		return $signatures[$key] = ! array_diff( $required, $names );
 	}
 
 	private static function input(): array {

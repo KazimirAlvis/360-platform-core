@@ -52,7 +52,7 @@ try {
 	}
 	$r = shared_get( '/clinics/' . get_post_field( 'post_name', $a ) . '/' );
 	shared_expect( 200 === wp_remote_retrieve_response_code( $r ) && false === strpos( wp_remote_retrieve_body( $r ), 'global360-review-form-js' ), 'Normal clinic page unchanged and has no shared-form script' );
-	$form = wpcf7_get_contact_form_by_hash( 'dc5be38' );
+	$form = current( array_filter( WPCF7_ContactForm::find(), array( \Global360\Platform\Reviews\ContactFormIntegration::class, 'matches' ) ) );
 	$r = shared_get( '/wp-json/contact-form-7/v1/contact-forms/' . $form->id() . '/feedback/schema' );
 	$rules = json_decode( wp_remote_retrieve_body( $r ), true )['rules'];
 	$required = array();

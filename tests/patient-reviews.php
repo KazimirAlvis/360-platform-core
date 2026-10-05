@@ -28,8 +28,8 @@ function review_submit( array $data, $form_id ) {
 	$_SERVER['REMOTE_ADDR'] = '127.0.0.1';
 	return wpcf7_contact_form( $form_id )->submit( array( 'skip_mail' => false ) );
 }
-$review_form = wpcf7_get_contact_form_by_hash( 'dc5be38' );
-review_assert( Integration::matches( $review_form ), 'Configured form found' );
+$review_form = current( array_filter( WPCF7_ContactForm::find(), array( \Global360\Platform\Reviews\ContactFormIntegration::class, 'matches' ) ) );
+review_assert( Integration::matches( $review_form ), 'Review form signature found' );
 $admin_id = 0;
 $subscriber_id = 0;
 $mail_calls = 0;
@@ -113,7 +113,7 @@ try {
 	$other_form_id = review_post( 'wpcf7_contact_form', 'publish', $prefix . ' unrelated form' );
 	$before_mail = $mail_calls;
 	review_submit( $data, $other_form_id );
-	review_assert( 2 === $count(), 'Unconfigured CF7 form does not store reviews' );
+	review_assert( 2 === $count(), 'Ordinary CF7 form does not store reviews' );
 	// Force storage failure only for the review INSERT, without changing real tables.
 	$break_storage = static function ( $query ) use ( $table ) { return 0 === strpos( $query, "INSERT INTO $table " ) ? 'INSERT INTO nonexistent_review_test_table (id) VALUES (1)' : $query; };
 	$before_mail = $mail_calls;

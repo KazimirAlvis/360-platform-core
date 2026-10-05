@@ -78,6 +78,7 @@ final class ReviewForm {
 	public static function elements( $html ) {
 		$form = \WPCF7_ContactForm::get_current();
 		if ( ! ContactFormIntegration::matches( $form ) ) { return $html; }
+		do_action( 'global360_review_form_rendering', $form );
 		wp_enqueue_script( 'global360-review-form', plugins_url( 'assets/js/review-form.js', GLOBAL360_PLATFORM_FILE ), array(), filemtime( GLOBAL360_PLATFORM_PATH . 'assets/js/review-form.js' ), true );
 		// Disabled in the delivered HTML as well as JS, avoiding stale initial choices.
 		$html = preg_replace( '/<select\b(?=[^>]*\bname="review-doctor")([^>]*)>/i', '<select disabled$1>', $html );

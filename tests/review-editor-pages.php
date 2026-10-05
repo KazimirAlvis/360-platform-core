@@ -18,7 +18,7 @@ try {
   editor_expect($x->query('//form[contains(@class,"global360-patient-review-form")]')->length===($slug==='leave-a-review'?1:0),"$slug renders the correct number of review forms");
   if($slug==='patient-reviews')editor_expect(strpos($html,'Temporary editor content verification.')<strpos($html,'class="patient-reviews-listing"'),'Listing follows editable content');
  }
- $f=wpcf7_get_contact_form_by_hash('dc5be38'); editor_expect($f->prop('messages')['mail_sent_ok']==='Thank you. Your review has been submitted and will be reviewed before publication.','Configured success message matches request');
+ $f=current(array_filter(WPCF7_ContactForm::find(), [\Global360\Platform\Reviews\ContactFormIntegration::class, 'matches'])); editor_expect($f->prop('messages')['mail_sent_ok']==='Thank you. Your review has been submitted and will be reviewed before publication.','Configured success message matches request');
  if(in_array('--preview',$argv,true)){echo "Temporary hero previews ready. Press Enter after browser checks to restore editor content.\n";fgets(STDIN);}
 } finally {
  foreach($originals as $id=>$content){
