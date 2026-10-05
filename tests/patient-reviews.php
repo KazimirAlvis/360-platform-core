@@ -157,7 +157,7 @@ try {
 	// Control only the count query to cover pagination regardless of existing local data.
 	foreach ( array( 0, 1, 30, 31 ) as $total ) {
 		$count_filter = static function ( $query ) use ( $table, $total ) {
-			return "SELECT COUNT(*) FROM $table" === $query ? 'SELECT ' . $total : $query;
+			return "SELECT COUNT(*) FROM $table WHERE status<>'trash'" === $query ? 'SELECT ' . $total : $query;
 		};
 		add_filter( 'query', $count_filter );
 		set_error_handler( static function ( $severity, $message, $file, $line ) {

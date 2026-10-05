@@ -3,7 +3,7 @@
  * Plugin Name: 360 Platform Core
  * Plugin URI: https://github.com/KazimirAlvis/360-platform-core
  * Description: Stable content, data, geography, relationship, and site-context services for the Global 360 platform.
- * Version: 1.1.1
+ * Version: 1.2.0
  * Author: PR360
  * Update URI: https://github.com/KazimirAlvis/360-platform-core
  * Requires at least: 6.0
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GLOBAL360_PLATFORM_VERSION', '1.1.1' );
+define( 'GLOBAL360_PLATFORM_VERSION', '1.2.0' );
 define( 'GLOBAL360_PLATFORM_FILE', __FILE__ );
 define( 'GLOBAL360_PLATFORM_PATH', plugin_dir_path( __FILE__ ) );
 define( 'GLOBAL360_PLATFORM_CORE_OWNS_CONTENT_TYPES', true );

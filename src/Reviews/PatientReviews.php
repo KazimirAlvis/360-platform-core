@@ -4,7 +4,7 @@ namespace Global360\Platform\Reviews;
 /** Private, immutable submission records. Deliberately outside clinic/API metadata. */
 final class PatientReviews {
 	const CAPABILITY = 'moderate_patient_reviews';
-	const VERSION = '1';
+	const VERSION = '2';
 
 	public static function table(): string {
 		global $wpdb;
@@ -31,15 +31,18 @@ final class PatientReviews {
 			consent_text text NOT NULL,
 			submitted_at datetime NOT NULL,
 			status varchar(20) NOT NULL DEFAULT 'pending',
+			previous_status varchar(20) NOT NULL DEFAULT '',
 			moderated_at datetime DEFAULT NULL,
 			moderator_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			notification_status varchar(20) NOT NULL DEFAULT 'pending',
+			previous_status varchar(20) NOT NULL DEFAULT '',
 			PRIMARY KEY  (id),
 			UNIQUE KEY submission_key (submission_key),
 			KEY status_date (status,submitted_at),
 			KEY clinic_id (clinic_id)
 		) $collation;" );
 		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) ) !== $table ) { return; }
+		if ( ! $wpdb->get_var( "SHOW COLUMNS FROM $table LIKE 'previous_status'" ) ) { return; }
 		$role = get_role( 'administrator' );
 		if ( $role ) { $role->add_cap( self::CAPABILITY ); }
 		update_option( 'global360_patient_reviews_schema', self::VERSION, false );
@@ -107,11 +110,40 @@ final class PatientReviews {
 		if ( ! current_user_can( self::CAPABILITY ) ) { return new \WP_Error( 'forbidden', 'You cannot moderate patient reviews.' ); }
 		if ( ! wp_verify_nonce( $nonce, 'global360_review_' . $id ) ) { return new \WP_Error( 'nonce', 'Invalid moderation request. Reload the review and try again.' ); }
 		$statuses = array( 'approve' => 'approved', 'reject' => 'rejected', 'hide' => 'hidden' );
-		if ( ! isset( $statuses[$action] ) || ! self::get( $id ) ) { return new \WP_Error( 'invalid', 'Invalid review or moderation action.' ); }
+		$row = self::get( $id );
+		if ( ! isset( $statuses[$action] ) || ! $row || 'trash' === $row->status ) { return new \WP_Error( 'invalid', 'Invalid review or moderation action.' ); }
 		global $wpdb;
-		$result = $wpdb->update( self::table(), array( 'status' => $statuses[$action], 'moderated_at' => current_time( 'mysql', true ), 'moderator_id' => get_current_user_id() ), array( 'id' => $id ), array( '%s', '%s', '%d' ), array( '%d' ) );
+		$result = $wpdb->update( self::table(), array( 'status' => $statuses[$action], 'moderated_at' => current_time( 'mysql', true ), 'moderator_id' => get_current_user_id() ), array( 'id' => $id, 'status' => $row->status ), array( '%s', '%s', '%d' ), array( '%d', '%s' ) );
 		if ( false === $result ) { return new \WP_Error( 'storage', 'The moderation change could not be saved.' ); }
 		do_action( 'global360_patient_review_moderated', $id, $statuses[$action] );
 		return true;
 	}
+	/** Custom-table trash lifecycle. Content remains immutable until explicit deletion. */
+	public static function trash_action( int $id, string $action, string $nonce, bool $confirmed = false ) {
+		if ( ! current_user_can( self::CAPABILITY ) ) { return new \WP_Error( 'forbidden', 'You cannot manage patient reviews.' ); }
+		if ( ! in_array( $action, array( 'trash', 'restore', 'delete' ), true ) || ! wp_verify_nonce( $nonce, 'global360_review_' . $action . '_' . $id ) ) {
+			return new \WP_Error( 'nonce', 'Invalid review action. Reload and try again.' );
+		}
+		$row = self::get( $id );
+		if ( ! $row ) { return new \WP_Error( 'missing', 'Review not found.' ); }
+		$states = array( 'pending', 'approved', 'rejected', 'hidden' );
+		if ( ( 'trash' === $action && ! in_array( $row->status, $states, true ) ) || ( 'trash' !== $action && 'trash' !== $row->status ) ) {
+			return new \WP_Error( 'state', 'This action is not available for the current review status.' );
+		}
+		global $wpdb;
+		$table = self::table();
+		if ( 'delete' === $action ) {
+			if ( ! $confirmed ) { return new \WP_Error( 'confirmation', 'Confirm permanent deletion first.' ); }
+			$result = $wpdb->delete( $table, array( 'id' => $id, 'status' => 'trash' ), array( '%d', '%s' ) );
+			$status = 'deleted';
+		} else {
+			$status = 'trash' === $action ? 'trash' : $row->previous_status;
+			if ( 'restore' === $action && ! in_array( $status, $states, true ) ) { return new \WP_Error( 'state', 'Previous moderation status is unavailable.' ); }
+			$result = $wpdb->update( $table, array( 'status' => $status, 'previous_status' => 'trash' === $action ? $row->status : '', 'moderated_at' => current_time( 'mysql', true ), 'moderator_id' => get_current_user_id() ), array( 'id' => $id, 'status' => $row->status ), array( '%s', '%s', '%s', '%d' ), array( '%d', '%s' ) );
+		}
+		if ( 1 !== $result ) { return new \WP_Error( 'storage', 'Review changed or could not be saved. Reload and try again.' ); }
+		do_action( 'global360_patient_review_moderated', $id, $status );
+		return true;
+	}
+
 }
