@@ -133,3 +133,21 @@ Authorized staff with `moderate_patient_reviews` can Move to Trash from review d
 All mutations require POST, capability checks, and a review nonce; trash/restore/delete use action-specific nonces. Permanent deletion is available only from Trash and requires a separate confirmation screen with an explicitly checked confirmation box verified server-side. It deletes the whole private row, including its duplicate fingerprint; a later identical submission can therefore create a new pending review. There is no bulk or scheduled permanent deletion. Successful lifecycle changes fire the existing moderation cache-invalidation event, and approved-only public selection excludes Trash immediately.
 
 Run `tests/review-trash.php` locally for fixture-only checks of all restored states, approved visibility, cache invalidation, immutable fields, permanent confirmation, nonce/action isolation, and unauthorized requests. Real reviews must never be used as deletion test fixtures.
+
+## Human-readable notification mail tags (Core 1.2.1)
+
+In CF7's **Mail** tab (and Mail (2), if used), replace `[clinic-id]` and `[review-doctor]` where you want names with `[review-clinic-name]` and `[review-doctor-name]`. These work in both Subject and Message body. Example:
+
+```text
+Subject: Patient review: [review-clinic-name] — [review-doctor-name]
+
+Clinic: [review-clinic-name]
+Doctor: [review-doctor-name]
+Rating: [review-rating]
+Display name: [review-display-name]
+Review: [review-message]
+```
+
+Do not add hidden name fields to the Form tab. Keep `clinic-id` and `review-doctor` unchanged as the actual form fields; their ID values continue to drive validation and storage. The new tags resolve through the existing core clinic/doctor repositories from the saved, server-validated IDs. Clinic-wide reviews render exactly `Clinic overall / No specific doctor`. Names supplied by the browser are never used; HTML mail names are escaped. Replacement runs only for forms matching the complete patient-review field signature, without any configured form ID. Missing records yield empty name values.
+
+Installing the plugin adds tag support but deliberately does not rewrite existing CF7 mail templates or notification recipients in the database. Make the Mail-tab replacements separately on each site. Existing ID mail tags remain available if desired for internal reference. Run `tests/review-mail-names.php` locally to verify plain/HTML subjects and bodies, doctor/overall cases, forged names, invalid IDs, and unrelated-form isolation; all test mail is intercepted.

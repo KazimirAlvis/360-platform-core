@@ -3,8 +3,11 @@ namespace Global360\Platform\Reviews;
 
 final class ContactFormIntegration {
 	private static $saved_id = 0;
+	private static $mail_form_id = 0;
+	private static $mail_names = array();
 
 	public static function boot(): void {
+		add_filter( 'wpcf7_mail_tag_replaced', array( self::class, 'mail_tag' ), 20, 4 );
 		add_filter( 'wpcf7_validate', array( self::class, 'validate' ), 20, 2 );
 		add_action( 'wpcf7_before_send_mail', array( self::class, 'save' ), PHP_INT_MAX, 3 );
 		add_action( 'wpcf7_mail_sent', array( self::class, 'sent' ) );
@@ -48,6 +51,8 @@ final class ContactFormIntegration {
 
 	public static function save( $form, &$abort, $submission ): void {
 		self::$saved_id = 0;
+		self::$mail_form_id = 0;
+		self::$mail_names = array();
 		if ( $abort || ! self::matches( $form ) ) { return; }
 		$consent = '';
 		foreach ( $form->scan_form_tags() as $tag ) {
@@ -60,6 +65,31 @@ final class ContactFormIntegration {
 			return;
 		}
 		self::$saved_id = $id;
+		// Storage revalidates the IDs. Resolve names only from that saved record.
+		$row = PatientReviews::get( $id );
+		if ( ! $row ) {
+			$abort = true;
+			$submission->set_response( 'Your review was saved, but its notification could not be prepared.' );
+			return;
+		}
+		$clinic = global360_platform()->clinics()->get( (int) $row->clinic_id );
+		$doctor = $row->doctor_id ? global360_platform()->doctors()->get( (int) $row->doctor_id ) : null;
+		self::$mail_form_id = (int) $form->id();
+		self::$mail_names = array(
+			'review-clinic-name' => $clinic['name'] ?? '',
+			'review-doctor-name' => $row->doctor_id ? ( $doctor['name'] ?? '' ) : 'Clinic overall / No specific doctor',
+		);
+
+	}
+
+	/** Override even forged posted name fields; special tags alone can be bypassed by POST. */
+	public static function mail_tag( $replaced, $submitted, $html, $tag ) {
+		$name = $tag->field_name();
+		$form = \WPCF7_ContactForm::get_current();
+		if ( ! in_array( $name, array( 'review-clinic-name', 'review-doctor-name' ), true ) || ! self::matches( $form ) ) { return $replaced; }
+		$value = self::$mail_form_id === (int) $form->id() ? ( self::$mail_names[$name] ?? '' ) : '';
+		$value = sanitize_text_field( wp_specialchars_decode( (string) $value, ENT_QUOTES ) );
+		return $html ? esc_html( $value ) : $value;
 	}
 
 	public static function sent( $form ): void { self::notification( $form, 'sent' ); }
